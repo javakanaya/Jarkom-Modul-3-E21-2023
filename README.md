@@ -170,32 +170,17 @@ Pada node Fern, karena IP Fern tujuan dari domain riegel.canyon.e21.com, maka ki
 ```sh
 rm /etc/apt/sources.list.d/php.list
 apt-get update
+apt install nginx php8.0 php8.0-fpm wget zip htop -y
+apt-get install -y lsb-release ca-certificates apt-transport-https software-properties-common gnupg2
 
-apt install -y \
-    nginx \
-    php8.0 \
-    php8.0-fpm \
-    php8.0-mbstring \
-    php8.0-xml \
-    php8.0-cli \
-    php8.0-common \
-    php8.0-intl \
-    php8.0-opcache \
-    php8.0-readline \
-    php8.0-mysql \
-    php8.0-curl \
-    wget \
-    zip \
-    htop \
-    lsb-release \
-    ca-certificates \
-    apt-transport-https \
-    software-properties-common \
-    gnupg2 \
-    mariadb-client -y
+apt-get install mariadb-client -y
 
 curl -sSLo /usr/share/keyrings/deb.sury.org-php.gpg https://packages.sury.org/php/apt.gpg
 sh -c 'echo "deb [signed-by=/usr/share/keyrings/deb.sury.org-php.gpg] https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list'
+
+apt-get update
+
+apt-get install php8.0-mbstring php8.0-xml php8.0-cli php8.0-common php8.0-intl php8.0-opcache php8.0-readline php8.0-mysql php8.0-fpm php8.0-curl -y
 
 wget https://getcomposer.org/download/2.0.13/composer.phar
 chmod +x composer.phar
@@ -470,12 +455,23 @@ service php8.0-fpm start
 ## Soal 15
 > Riegel Channel memiliki beberapa endpoint yang harus ditesting sebanyak 100 request dengan 10 request/second. Tambahkan response dan hasil testing pada grimoire.
 > - POST /auth/register (15)
+```
+echo {"username": "test123", "password": "test123"} > register.json && ab -n 100 -c 10 -p register.json -T application/json http://riegel.canyon.e21.com/api/auth/register
+```
 
 ## Soal 16
 > - POST /auth/login (16)
+```
+echo {"username": "test123", "password": "test123"} > login.json && ab -n 100 -c 10 -p login.json -T application/json http://riegel.canyon.e21.com/api/auth/login
+```
 
 ## Soal 17
 > - GET /me (17)
+```
+curl -X POST -H "Content-Type: application/json" -d @login.json http://riegel.canyon.e21.com/api/auth/login > login_output.txt
+token=$(cat login_output.txt | jq -r '.token')
+ab -n 100 -c 10 -H "Authorization: Bearer $token" http://riegel.canyon.e21.com/api/me
+```
 
 ## Soal 18
 > Untuk memastikan ketiganya bekerja sama secara adil untuk mengatur Riegel Channel maka implementasikan Proxy Bind pada Eisen untuk mengaitkan IP dari Frieren, Flamme, dan Fern. (18)
@@ -534,6 +530,87 @@ service nginx restart
 > - pm.max_spare_servers
 
 > sebanyak tiga percobaan dan lakukan testing sebanyak 100 request dengan 10 request/second kemudian berikan hasil analisisnya pada Grimoire.(19)
+
+Testing menggunakan command berikut pada client:
+```
+ab -n 100 -c 10 http://riegel.canyon.e21.com/
+```
+
+- Percobaan Pertama
+```sh
+echo '
+[www]
+
+user = www-data
+group = www-data
+
+listen = /run/php/php8.0-fpm.sock
+
+listen.owner = www-data
+listen.group = www-data
+
+
+
+pm = dynamic
+pm.max_children = 25
+pm.start_servers = 7
+pm.min_spare_servers = 6
+pm.max_spare_servers = 10
+' > /etc/php/8.0/fpm/pool.d/www.conf
+
+service php8.0-fpm stop
+service php8.0-fpm start
+```
+- Percobaaan Kedua
+```sh
+echo '
+[www]
+
+user = www-data
+group = www-data
+
+listen = /run/php/php8.0-fpm.sock
+
+listen.owner = www-data
+listen.group = www-data
+
+
+
+pm = dynamic
+pm.max_children = 30
+pm.start_servers = 8
+pm.min_spare_servers = 7
+pm.max_spare_servers = 12
+' > /etc/php/8.0/fpm/pool.d/www.conf
+
+service php8.0-fpm stop
+service php8.0-fpm start
+```
+- Percobaan Ketiga
+```sh
+echo '
+[www]
+
+user = www-data
+group = www-data
+
+listen = /run/php/php8.0-fpm.sock
+
+listen.owner = www-data
+listen.group = www-data
+
+
+
+pm = dynamic
+pm.max_children = 20
+pm.start_servers = 5
+pm.min_spare_servers = 4
+pm.max_spare_servers = 8
+' > /etc/php/8.0/fpm/pool.d/www.conf
+
+service php8.0-fpm stop
+service php8.0-fpm start
+```
 
 
 ## Soal 20
