@@ -466,9 +466,6 @@ lynx localhost:8000
 > Riegel Channel memiliki beberapa endpoint yang harus ditesting sebanyak 100 request dengan 10 request/second. Tambahkan response dan hasil testing pada grimoire.
 > - POST /auth/register (15)
 
-
-Jalankan command berikut ke salah satu worker:
-
 Response
 ```
 curl -X POST http://10.47.4.1:8000/api/auth/register -H 'Accept: application/json' -H 'Content-Type: application/json' -d '{"username": "test123", "password": "test123"}' | jq
@@ -484,7 +481,6 @@ echo {"username": "test123", "password": "test123"} > register.json && ab -n 100
 
 ## Soal 16
 > - POST /auth/login (16)
-Jalankan command berikut ke salah satu worker:
 
 Response
 ```
@@ -502,7 +498,6 @@ echo {"username": "test123", "password": "test123"} > login.json && ab -n 100 -c
 
 ## Soal 17
 > - GET /me (17)
-Jalankan command berikut ke salah satu worker:
 
 Response
 ```
