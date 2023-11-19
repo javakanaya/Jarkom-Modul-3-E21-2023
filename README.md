@@ -539,8 +539,212 @@ ab -n 1000 -c 100 http://www.granz.channel.e21.com/
 > - Grafik request per second untuk masing masing algoritma. 
 > - Analisis (8)
 
+Gunakan commmand berikut untuk menlakukan testing
+```
+ab -n 200 -c 10 http://www.granz.channel.e21.com/
+```
+
+Perbarui algoritma load balancer pada node ***Eisen***, menggunakan script berikut
+- Round Robin
+```
+echo ' # Default menggunakan Round Robin
+upstream granz  {
+	server 10.47.3.1:8000; #IP Lugner
+	server 10.47.3.4:8000; #IP Linie
+	server 10.47.3.5:8000; #IP Lawine
+}
+
+server {
+	listen 80;
+	server_name granz.channel.e21.com www.granz.channel.e21.com;
+
+	location / {
+		proxy_pass http://granz;
+	}
+}' > /etc/nginx/sites-available/lb-proxy
+
+ln -s /etc/nginx/sites-available/lb-proxy /etc/nginx/sites-enabled/lb-proxy
+
+rm /etc/nginx/sites-enabled/default
+
+service nginx restart
+```
+<img width="1512" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/8ed2fad4-b57d-4422-8c5b-4cad09de38d5">
+<img width="879" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/0e587f73-78f1-43a5-901e-8837c2ff3349">
+
+
+- Least Connection
+```
+echo '
+upstream granz  {
+ 	least_conn;
+	server 10.47.3.1:8000; #IP Lugner
+	server 10.47.3.4:8000; #IP Linie
+	server 10.47.3.5:8000; #IP Lawine
+}
+
+server {
+	listen 80;
+	server_name granz.channel.e21.com www.granz.channel.e21.com;
+
+	location / {
+		proxy_pass http://granz;
+	}
+}' > /etc/nginx/sites-available/lb-proxy
+
+ln -s /etc/nginx/sites-available/lb-proxy /etc/nginx/sites-enabled/lb-proxy
+
+rm /etc/nginx/sites-enabled/default
+
+service nginx restart
+```
+<img width="1512" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/a7bf1652-de76-4cd9-8733-0619ca7853be">
+<img width="858" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/079c1513-81e9-47de-b9cf-958131cbfc67">
+
+
+- IP Hash:
+```
+echo '
+upstream granz  {
+ 	ip_hash;
+	server 10.47.3.1:8000; #IP Lugner
+	server 10.47.3.4:8000; #IP Linie
+	server 10.47.3.5:8000; #IP Lawine
+}
+
+server {
+	listen 80;
+	server_name granz.channel.e21.com www.granz.channel.e21.com;
+
+	location / {
+		proxy_pass http://granz;
+	}
+}' > /etc/nginx/sites-available/lb-proxy
+
+ln -s /etc/nginx/sites-available/lb-proxy /etc/nginx/sites-enabled/lb-proxy
+
+rm /etc/nginx/sites-enabled/default
+
+service nginx restart
+```
+<img width="1512" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/0e1f428f-65d5-4a4f-beab-67f0b6769ce5">
+<img width="858" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/859b3d2b-b82f-49f1-b078-821b0f9d42d2">
+
+
+- Generic Hash
+```
+echo '
+upstream granz  {
+ 	hash $request_uri consistent;
+	server 10.47.3.1:8000; #IP Lugner
+	server 10.47.3.4:8000; #IP Linie
+	server 10.47.3.5:8000; #IP Lawine
+}
+
+server {
+	listen 80;
+	server_name granz.channel.e21.com www.granz.channel.e21.com;
+
+	location / {
+		proxy_pass http://granz;
+	}
+}' > /etc/nginx/sites-available/lb-proxy
+
+ln -s /etc/nginx/sites-available/lb-proxy /etc/nginx/sites-enabled/lb-proxy
+
+rm /etc/nginx/sites-enabled/default
+
+service nginx restart
+```
+<img width="1512" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/91916c86-186c-447a-8355-9ab2ba5d3795">
+<img width="858" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/8f144a39-2c36-4ccd-b62f-88960d758a9e">
+
+
+
 ## Soal 9
 > Dengan menggunakan algoritma Round Robin, lakukan testing dengan menggunakan 3 worker, 2 worker, dan 1 worker sebanyak 100 request dengan 10 request/second, kemudian tambahkan grafiknya pada grimoire. (9)
+
+Gunakan commmand berikut untuk menlakukan testing
+```
+ab -n 100 -c 10 http://www.granz.channel.e21.com/
+```
+
+- 3 Worker
+```
+echo ' # Default menggunakan Round Robin
+upstream granz  {
+	server 10.47.3.1:8000; #IP Lugner
+	server 10.47.3.4:8000; #IP Linie
+	server 10.47.3.5:8000; #IP Lawine
+}
+
+server {
+	listen 80;
+	server_name granz.channel.e21.com www.granz.channel.e21.com;
+
+	location / {
+		proxy_pass http://granz;
+	}
+}' > /etc/nginx/sites-available/lb-proxy
+
+ln -s /etc/nginx/sites-available/lb-proxy /etc/nginx/sites-enabled/lb-proxy
+
+rm /etc/nginx/sites-enabled/default
+
+service nginx restart
+```
+<img width="879" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/09e5738f-eb19-47d2-bd58-a9af8a7aaec0">
+
+
+- 2 Worker
+```
+echo ' # Default menggunakan Round Robin
+upstream granz  {
+	server 10.47.3.1:8000; #IP Lugner
+	server 10.47.3.4:8000; #IP Linie
+}
+
+server {
+	listen 80;
+	server_name granz.channel.e21.com www.granz.channel.e21.com;
+
+	location / {
+		proxy_pass http://granz;
+	}
+}' > /etc/nginx/sites-available/lb-proxy
+
+ln -s /etc/nginx/sites-available/lb-proxy /etc/nginx/sites-enabled/lb-proxy
+
+rm /etc/nginx/sites-enabled/default
+
+service nginx restart
+```
+<img width="879" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/d90d7a15-7a06-430d-a620-647adf0c0453">
+
+- 1 Worker
+```
+echo ' # Default menggunakan Round Robin
+upstream granz  {
+	server 10.47.3.1:8000; #IP Lugner
+}
+
+server {
+	listen 80;
+	server_name granz.channel.e21.com www.granz.channel.e21.com;
+
+	location / {
+		proxy_pass http://granz;
+	}
+}' > /etc/nginx/sites-available/lb-proxy
+
+ln -s /etc/nginx/sites-available/lb-proxy /etc/nginx/sites-enabled/lb-proxy
+
+rm /etc/nginx/sites-enabled/default
+
+service nginx restart
+```
+<img width="879" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/92d1b4d6-7177-4037-b6e6-06e98291206e">
+
 
 ## Soal 10
 > Selanjutnya coba tambahkan konfigurasi autentikasi di LB dengan dengan kombinasi username: “netics” dan password: “ajkyyy”, dengan yyy merupakan kode kelompok. Terakhir simpan file “htpasswd” nya di /etc/nginx/rahasisakita/ (10)
