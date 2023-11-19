@@ -8,7 +8,8 @@ Laporan Resmi Praktikum Jaringan Komputer Modul 3
 - [Java Kanaya Prada](https://github.com/javakanaya) - 5025211112
 
 ## Topologi
-<img width="957" alt="topologi modul3" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/5b4ff9af-16c4-415c-8d01-b20230624cc0">
+<img width="952" alt="topologi new" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/562a1dc5-2a49-4ade-916a-e8a154148f9f">
+
 
 
 ## *Network Configuration*
@@ -83,7 +84,7 @@ gateway 10.47.4.100
 ```
 auto eth0
 iface eth0 inet static
-address 10.47.4.2
+address 10.47.4.4
 netmask 255.255.255.0
 gateway 10.47.4.100
 ```
@@ -91,7 +92,7 @@ gateway 10.47.4.100
 ```
 auto eth0
 iface eth0 inet static
-address 10.47.4.3
+address 10.47.4.5
 netmask 255.255.255.0
 gateway 10.47.4.100
 ```
@@ -109,7 +110,7 @@ gateway 10.47.3.100
 ```
 auto eth0
 iface eth0 inet static
-address 10.47.3.2
+address 10.47.3.4
 netmask 255.255.255.0
 gateway 10.47.3.100
 ```
@@ -117,7 +118,7 @@ gateway 10.47.3.100
 ```
 auto eth0
 iface eth0 inet static
-address 10.47.3.3
+address 10.47.3.5
 netmask 255.255.255.0
 gateway 10.47.3.100
 ```
@@ -132,6 +133,7 @@ iface eth0 inet dhcp
 > Karena para petualang kehabisan uang, mereka kembali bekerja untuk mengatur riegel.canyon.yyy.com. 
 > Semua data yang diperlukan, diatur pada Denken dan harus dapat diakses oleh Frieren, Flamme, dan Fern. (13)
 
+### ***Script***
 Jalankan script berikut pada node yang menjadi database server, yaitu node ***Denken***:
 ```sh
 apt-get install mariadb-server -y
@@ -157,12 +159,14 @@ FLUSH PRIVILEGES;
 
 mysql < ~/script.sql
 ```
-
+### Hasil
 Kemudian untuk melakukan pengujian, kita bisa menjalankan command berikut pada Laravel Worker ***(Frieren, Flamme, dan Fern)***, 
 ```
 apt-get install mariadb-client -y
 mariadb --host=10.47.2.1 --port=3306 --user=kelompoke21 --password=passworde21 dbkelompoke21 -e "SHOW DATABASES;"
 ```
+<img width="1402" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/813c798c-3193-4d50-bbbd-dc834c1b2d0e">
+
 ## Soal 14
 > Frieren, Flamme, dan Fern memiliki Riegel Channel sesuai dengan quest guide berikut. Jangan lupa melakukan instalasi PHP8.0 dan Composer (14)
 
@@ -450,32 +454,75 @@ service nginx restart
 service php8.0-fpm stop
 service php8.0-fpm start
 ```
+### Hasil
+Untuk pengujian jalankan command berikut, pada salah satu worker laravel:
+```
+lynx localhost:8000
+```
+<img width="1402" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/1fa92bfb-ef6b-4780-868c-5bad55b666c3">
 
 
 ## Soal 15
 > Riegel Channel memiliki beberapa endpoint yang harus ditesting sebanyak 100 request dengan 10 request/second. Tambahkan response dan hasil testing pada grimoire.
 > - POST /auth/register (15)
+
+
+Jalankan command berikut ke salah satu worker:
+
+Response
 ```
-echo {"username": "test123", "password": "test123"} > register.json && ab -n 100 -c 10 -p register.json -T application/json http://riegel.canyon.e21.com/api/auth/register
+curl -X POST http://10.47.4.1:8000/api/auth/register -H 'Accept: application/json' -H 'Content-Type: application/json' -d '{"username": "test123", "password": "test123"}' | jq
 ```
+<img width="1448" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/659c84a8-6106-4ed8-ad3f-7554189b60c4">
+
+Testing
+```
+echo {"username": "test123", "password": "test123"} > register.json && ab -n 100 -c 10 -p register.json -T application/json http://10.47.4.4:8000/api/auth/register
+```
+<img width="1402" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/195e3cb3-5f94-46af-b565-76def8b3ad58">
+
 
 ## Soal 16
 > - POST /auth/login (16)
+Jalankan command berikut ke salah satu worker:
+
+Response
 ```
-echo {"username": "test123", "password": "test123"} > login.json && ab -n 100 -c 10 -p login.json -T application/json http://riegel.canyon.e21.com/api/auth/login
+curl -X POST http://10.47.4.1:8000/api/auth/login -H 'Accept: application/json' -H 'Content-Type: application/json' -d '{"username": "test123", "password": "test123"}' | jq
 ```
+
+<img width="1448" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/31544bf2-1a0b-4a33-b0de-f4c829047238">
+
+Testing
+```
+echo {"username": "test123", "password": "test123"} > login.json && ab -n 100 -c 10 -p login.json -T application/json http://10.47.4.4:8000/api/auth/login
+```
+<img width="1402" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/91bc651d-c858-46fc-9890-54fb28e03f24">
+
 
 ## Soal 17
 > - GET /me (17)
+Jalankan command berikut ke salah satu worker:
+
+Response
 ```
-curl -X POST -H "Content-Type: application/json" -d @login.json http://riegel.canyon.e21.com/api/auth/login > login_output.txt
+curl -X GET http://10.47.4.1:8000/api/me -H 'Accept: application/json' -H 'Content-Type: application/json' -H 'Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vMTAuNDcuNC4xOjgwMDAvYXBpL2F1dGgvbG9naW4iLCJpYXQiOjE3MDAzODEwMTQsImV4cCI6MTcwMDM4NDYxNCwibmJmIjoxNzAwMzgxMDE0LCJqdGkiOiIyYlp5bUJteFNycFpOZnVuIiwic3ViIjoiMSIsInBydiI6IjIzYmQ1Yzg5NDlmNjAwYWRiMzllNzAxYzQwMDg3MmRiN2E1OTc2ZjcifQ.GQ5Ej6A0uMbUC3sjAKghHnQwVAjIv_Mo1tLvWztgFQc' | jq
+```
+<img width="1402" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/7a9ea547-03c9-4232-835a-41c50cccd68c">
+
+
+Testing
+```
+curl -X POST -H "Content-Type: application/json" -d @login.json http://10.47.4.4:8000/api/auth/login > login_output.txt
 token=$(cat login_output.txt | jq -r '.token')
-ab -n 100 -c 10 -H "Authorization: Bearer $token" http://riegel.canyon.e21.com/api/me
+ab -n 100 -c 10 -H "Authorization: Bearer $token" http://10.47.4.4:8000/api/me
 ```
+<img width="1402" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/c3a25c2d-d643-44ac-a82f-6a7c39ca1e93">
+
 
 ## Soal 18
 > Untuk memastikan ketiganya bekerja sama secara adil untuk mengatur Riegel Channel maka implementasikan Proxy Bind pada Eisen untuk mengaitkan IP dari Frieren, Flamme, dan Fern. (18)
-
+### ***Script***
 Perbarui pengaturan pada Node Load Balancer ***Eisen***, agar bisa mengatur Riegel Channel, gunakan script berikut:
 ```sh
 echo ' # Default menggunakan Round Robin
@@ -521,6 +568,12 @@ rm /etc/nginx/sites-enabled/default
 service nginx restart
 
 ```
+### Hasil
+Pada salah satu client, jalankan command berikut:
+```
+lynx riegel.canyon.e21.com
+```
+<img width="1402" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/492f80f0-ca3f-48c4-9dea-a786cff0d51d">
 
 ## Soal 19
 > Untuk meningkatkan performa dari Worker, coba implementasikan PHP-FPM pada Frieren, Flamme, dan Fern. Untuk testing kinerja naikkan 
@@ -533,9 +586,10 @@ service nginx restart
 
 Testing menggunakan command berikut pada client:
 ```
-ab -n 100 -c 10 http://riegel.canyon.e21.com/
+echo {"username": "test123", "password": "test123"} > login.json && ab -n 100 -c 10 -p login.json -T application/json http://reigel.canyon.e21.com/api/auth/login
 ```
 
+Jalankan script berikut ke semua worker, lalu untuk testing lakukan pada node client, menggunaakan command diatas:
 - Percobaan Pertama
 ```sh
 echo '
@@ -549,18 +603,20 @@ listen = /run/php/php8.0-fpm.sock
 listen.owner = www-data
 listen.group = www-data
 
-
-
 pm = dynamic
-pm.max_children = 25
-pm.start_servers = 7
-pm.min_spare_servers = 6
-pm.max_spare_servers = 10
+pm.max_children = 10
+pm.start_servers = 5
+pm.min_spare_servers = 4
+pm.max_spare_servers = 3
 ' > /etc/php/8.0/fpm/pool.d/www.conf
 
 service php8.0-fpm stop
 service php8.0-fpm start
 ```
+Hasil Percoabaan Pertama
+<img width="1402" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/2fd01c3d-4412-4df3-80a4-1ce11449da6c">
+
+
 - Percobaaan Kedua
 ```sh
 echo '
@@ -575,17 +631,20 @@ listen.owner = www-data
 listen.group = www-data
 
 
-
 pm = dynamic
-pm.max_children = 30
-pm.start_servers = 8
-pm.min_spare_servers = 7
-pm.max_spare_servers = 12
+pm.max_children = 40
+pm.start_servers = 15
+pm.min_spare_servers = 12
+pm.max_spare_servers = 9
 ' > /etc/php/8.0/fpm/pool.d/www.conf
 
 service php8.0-fpm stop
 service php8.0-fpm start
 ```
+Hasil Percoabaan Kedua
+<img width="1402" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/ed36b824-bb1e-4174-95f2-42534fd01794">
+
+
 - Percobaan Ketiga
 ```sh
 echo '
@@ -600,22 +659,23 @@ listen.owner = www-data
 listen.group = www-data
 
 
-
 pm = dynamic
-pm.max_children = 20
-pm.start_servers = 5
-pm.min_spare_servers = 4
-pm.max_spare_servers = 8
+pm.max_children = 80
+pm.start_servers = 20
+pm.min_spare_servers = 16
+pm.max_spare_servers = 12
 ' > /etc/php/8.0/fpm/pool.d/www.conf
 
 service php8.0-fpm stop
 service php8.0-fpm start
 ```
+Hasil Percobaan Ketiga
+<img width="1402" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/e19266d6-bd32-42d6-ac8f-369b38dcbb79">
 
 
 ## Soal 20
 > Nampaknya hanya menggunakan PHP-FPM tidak cukup untuk meningkatkan performa dari worker maka implementasikan Least-Conn pada Eisen. Untuk testing kinerja dari worker tersebut dilakukan sebanyak 100 request dengan 10 request/second. (20)
-
+### ***Script***
 Untuk mengimplementasikan Least-Conn, Perbarui Load Balancer dengan menambahkan ```least-conn;```. jalankan script berikut pada node ***Eisen***:
 ```sh
 echo ' # Default menggunakan Round Robin
@@ -626,7 +686,7 @@ upstream granz  {
 }
 
 upstream riegel  {
-  least-conn;
+  least_conn;
   server 10.47.4.1:8000; #IP Fern
   server 10.47.4.4:8000; #IP Frieren
   server 10.47.4.5:8000; #IP Flamme
@@ -660,3 +720,10 @@ ln -s /etc/nginx/sites-available/lb-proxy /etc/nginx/sites-enabled/lb-proxy
 rm /etc/nginx/sites-enabled/default
 
 service nginx restart
+```
+### Hasil
+Untuk melakukan testing, pada client jalankan command berikut:
+```
+ab -n 100 -c 10 http://riegel.canyon.e21.com/
+```
+<img width="1402" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/507e706f-98dd-4961-8ce9-7c8a7113854e">
