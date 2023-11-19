@@ -128,6 +128,568 @@ auto eth0
 iface eth0 inet dhcp
 ```
 
+## Soal 0
+> Setelah mengalahkan Demon King, perjalanan berlanjut. Kali ini, kalian diminta untuk melakukan register domain berupa riegel.canyon.yyy.com untuk worker Laravel dan granz.channel.yyy.com untuk worker PHP (0) mengarah pada worker yang memiliki IP [prefix IP].x.1.
+
+Melakukan register domain dilakukan pada node yang menjadi DNS Server, yaitu pada node ***Heater***, berikut adalah konfigurasi DNS nya
+### *Script*
+```sh
+apt-get install bind9 -y
+
+echo 'zone "riegel.canyon.e21.com" {
+type master;
+file "/etc/bind/jarkom/riegel.canyon.e21.com";
+};
+
+zone "granz.channel.e21.com" {
+type master;
+file "/etc/bind/jarkom/granz.channel.e21.com";
+};' > /etc/bind/named.conf.local
+
+mkdir -p /etc/bind/jarkom
+cp /etc/bind/db.local /etc/bind/jarkom/riegel.canyon.e21.com
+cp /etc/bind/db.local /etc/bind/jarkom/granz.channel.e21.com
+
+echo ';
+; BIND data file for local loopback interface
+;
+$TTL    604800
+@       IN      SOA        root.riegel.canyon.e21.com. (
+					2023111401      ; Serial
+						604800      ; Refresh
+						86400       ; Retry
+						2419200     ; Expire
+						604800 )    ; Negative Cache TTL
+;
+@       IN      NS      riegel.canyon.e21.com.
+@       IN      A       10.47.4.1     ; IP Fern
+www     IN      CNAME   riegel.canyon.e21.com.' > /etc/bind/jarkom/riegel.canyon.e21.com
+
+echo '
+; BIND data file for local loopback interface
+;
+$TTL    604800
+@       IN      SOA     granz.channel.e21.com. root.granz.channel.e21.com. (
+					2023111401      ; Serial
+						604800      ; Refresh
+						86400       ; Retry
+						2419200     ; Expire
+						604800 )    ; Negative Cache TTL
+;
+@       IN      NS      granz.channel.e21.com.
+@       IN      A       10.47.3.1     ; IP Lugner
+www     IN      CNAME   granz.channel.e21.com.' > /etc/bind/jarkom/granz.channel.e21.com
+
+echo 'options {
+	directory "/var/cache/bind";
+
+	forwarders {
+			192.168.122.1;
+	};
+
+	// dnssec-validation auto;
+	allow-query{any;};
+	auth-nxdomain no;    # conform to RFC1035
+	listen-on-v6 { any; };
+}; ' >/etc/bind/named.conf.options
+
+service bind9 start
+```
+Konfigurasi DNS tersebut mengarahkan domain **riegel.canyon.e21.com** ke IP node ***Fern*** ```10.47.4.1 ``` (Laravel Worker) dan domain **granz.channel.e21.com** ke IP node ***Lugner*** ```10.47.3.1``` (PHP Worker). 
+
+Untuk mencoba apakah domain tersebut benar dapat diakses, kita perlu menambahkan terlebih dahulu IP DNS Server ***(Heater)***, ke dalam file ```/etc/resolv.conf```, jalakan script berikut, pada node **selain node client** (pada node client akan ditambahkan melalui DHCP):
+```sh
+echo 'nameserver 10.47.1.2
+nameserver 192.168.122.1
+' > /etc/resolv.conf
+
+apt update -y
+apt-get install dnsutils htop jq apache2-utils lynx -y
+```
+### Hasil
+Untuk mencobanya gunakan command berikut
+```
+ping granz.channel.e21.com -c 5
+ping riegel.canyon.e21.com -c 5
+```
+<img width="1402" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/4a81b499-5e22-4a5c-8459-792ddf87f649">
+
+
+## Soal 1
+> Lakukan konfigurasi sesuai dengan peta yang sudah diberikan. Kemudian, karena masih banyak spell yang harus dikumpulkan, bantulah para petualang untuk memenuhi kriteria berikut: 
+> - Semua CLIENT harus menggunakan konfigurasi dari DHCP Server.
+
+Pada peta yang diberikan menggunakan image docker ```danielcristh0/debian-buster:1.1```, untuk itu perlu membuat template docker baru, dengan image mengarah pada image docker yang telah diberikan. 
+Kemudian menyusun setiap node, sesuai dengan peta, dan memberikan ***network configuration*** seperti yang telah ditampilkan pada bagian [*Network Configuration*](##*network-configuration*)
+
+Selanjutnya untuk konfigurasi DHCP server yang diletakan pada node ***Himmel*** adalah sebagai berikut:
+```sh
+apt-get install isc-dhcp-server -y
+
+echo "
+INTERFACESv4=\"eth0\"
+#INTERFACESv6=\"\"
+" > /etc/default/isc-dhcp-server
+
+yes | echo "
+default-lease-time 600;
+max-lease-time 7200;
+
+subnet 10.47.1.0 netmask 255.255.255.0 {}
+subnet 10.47.2.0 netmask 255.255.255.0 {}
+
+subnet 10.47.3.0 netmask 255.255.255.0 {
+	range 10.47.3.16 10.47.3.32;
+	range 10.47.3.64 10.47.3.80;
+	option routers 10.47.3.100;
+	option broadcast-address 10.47.3.255;
+	option domain-name-servers 10.47.1.2;
+	default-lease-time 180;
+	max-lease-time 5760;
+}
+
+subnet 10.47.4.0 netmask 255.255.255.0 {
+	range 10.47.4.12 10.47.4.20;
+	range 10.47.4.160 10.47.4.168;
+	option routers 10.47.4.100;
+	option broadcast-address 10.47.4.255;
+	option domain-name-servers 10.47.1.2;
+	default-lease-time 720;
+	max-lease-time 5760;
+}
+
+" > /etc/dhcp/dhcpd.conf
+
+rm /var/run/dhcpd.pid
+
+service isc-dhcp-server restart
+```
+
+
+
+Berikutnya untuk konfigurasi pada DHCP relay, yaitu di node ***Aura***, yang menjadi penghubung antara DHCP server dan client, menggunakan script berikut:
+```sh
+apt update -y
+apt-get install isc-dhcp-relay -y
+
+echo '
+SERVERS="10.47.1.1"
+INTERFACES="eth1 eth2 eth3 eth4"
+OPTIONS=""
+' > /etc/default/isc-dhcp-relay
+
+echo '
+net.ipv4.ip_forward=1
+' > /etc/sysctl.conf
+
+service isc-dhcp-relay restart
+```
+
+Setelah itu kita perlu melakukan restart pada node client, dan ketika kita masuk ke console pada node client, akan terlihat bahwa node client sekarang sudah memiliki alamat IP.
+
+## Soal 2
+> - Client yang melalui Switch3 mendapatkan range IP dari [prefix IP].3.16 - [prefix IP].3.32 dan [prefix IP].3.64 - [prefix IP].3.80 (2)
+Pengaturan *range* IP untuk client yang melalui Switch3 ada pada bagian berikut, di script sebelumnya.
+```
+subnet 10.47.3.0 netmask 255.255.255.0 {
+...
+range 10.47.3.16 10.47.3.32;
+range 10.47.3.64 10.47.3.80;
+...
+}
+```
+Jika dilihat maka IP dari client yang melalui switch3 juga berada pada •range• yang telah ditentukan.
+
+
+## Soal 3
+> - Client yang melalui Switch4 mendapatkan range IP dari [prefix IP].4.12 - [prefix IP].4.20 dan [prefix IP].4.160 - [prefix IP].4.168 (3)
+Sama seperti sebelumnya, Pengaturan *range* IP untuk client yang melalui Switch4 ada pada bagian berikut, di script sebelumnya.
+```
+subnet 10.47.4.0 netmask 255.255.255.0 {
+...
+range 10.47.4.12 10.47.4.20;
+range 10.47.4.160 10.47.4.168;
+...
+}
+```
+Jika dilihat maka IP dari client yang melalui switch4 juga berada pada •range• yang telah ditentukan.
+
+
+
+## Soal 4
+> - Client mendapatkan DNS dari Heiter dan dapat terhubung dengan internet melalui DNS tersebut (4)
+Agar Client menerimaa DNS dari DNS Server yaitu ***Heiter***. Diberikan konfigurasi berikut:
+```
+subnet 10.47.3.0 netmask 255.255.255.0 {
+...
+option domain-name-servers 10.47.1.2;
+...
+}
+
+subnet 10.47.4.0 netmask 255.255.255.0 {
+...
+option domain-name-servers 10.47.1.2;
+...
+}
+```
+
+kemudian agar Client dapat terhubung ke internet melalui node DNS Server ***Heiter*** digunakan DNS forwarder, yang sebelumnya juga telah dilakukan pada bagian berikut:
+```sh
+echo 'options {
+	directory "/var/cache/bind";
+
+	forwarders {
+			192.168.122.1;
+	};
+
+	// dnssec-validation auto;
+	allow-query{any;};
+	auth-nxdomain no;    # conform to RFC1035
+	listen-on-v6 { any; };
+}; ' >/etc/bind/named.conf.options
+```
+
+## Soal 5
+> - Lama waktu DHCP server meminjamkan alamat IP kepada Client yang melalui Switch3 selama 3 menit sedangkan pada client yang melalui Switch4 selama 12 menit. Dengan waktu maksimal dialokasikan untuk peminjaman alamat IP selama 96 menit (5)
+
+Untuk pengaturan lama waktu peminjaman ada pada bagian berikut, waktu tersebut diubah dulu ke dalam bentuk detik, sehingga waktu peminjaman untuk client yang melalui Switch3 menjadi 180 detik, cleint yang melalui switch 4 menjadi 720 detik, dan waktu maksimalnya menjadi 5760 detik.
+```
+subnet 10.47.3.0 netmask 255.255.255.0 {
+...
+default-lease-time 180;
+max-lease-time 5760;
+...
+}
+
+subnet 10.47.4.0 netmask 255.255.255.0 {
+...
+default-lease-time 720;
+max-lease-time 5760;
+...
+}
+```
+
+Setelah proses pada node ***Himmel*** selesai, selanjutnya lakukan restart pada Node Aura yang menjadi DHCP Relay, dan pada Client, agar Client bisa meneripa IP dari DHCP.
+<img width="1512" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/eb3745e8-dd73-4229-927f-b2d82be81641">
+
+Client juga telah terhubung ke internet, melalui DNS Forwarders.
+<img width="1512" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/e16432ec-2e1a-4531-bb61-32a0212400d7">
+
+
+## Soal 6
+> Pada masing-masing worker PHP, lakukan konfigurasi virtual host untuk website [berikut](https://drive.google.com/file/d/1ViSkRq7SmwZgdK64eRbr5Fm1EGCTPrU1/view?usp=sharing) dengan menggunakan php 7.3. (6)
+
+### *Script*
+Jalankan script berikut pada PHP Worker, untuk melakukan konfigurasi virtual host pada website [tersebut](https://drive.google.com/file/d/1ViSkRq7SmwZgdK64eRbr5Fm1EGCTPrU1/view?usp=sharing). dengan menggunakan php 7.3.
+```sh
+apt install nginx php7.3 php7.3-fpm wget zip htop -y
+
+wget -O '/var/www/jarkom.zip' 'https://drive.google.com/uc?id=1ViSkRq7SmwZgdK64eRbr5Fm1EGCTPrU1&export=download'
+unzip -o /var/www/jarkom.zip -d /var/www/
+rm /var/www/jarkom.zip
+
+echo '
+server {
+
+	listen 8000;
+
+	root /var/www/modul-3;
+
+	index index.php index.html index.htm;
+	server_name _;
+
+	location / {
+		try_files $uri $uri/ /index.php?$query_string;
+	}
+
+	# pass PHP scripts to FastCGI server
+	location ~ \.php$ {
+		include snippets/fastcgi-php.conf;
+		fastcgi_pass unix:/var/run/php/php7.3-fpm.sock;
+	}
+
+	location ~ /\.ht {
+		deny all;
+	}
+
+	error_log /var/log/nginx/jarkom_error.log;
+	access_log /var/log/nginx/jarkom_access.log;
+}
+' > /etc/nginx/sites-available/modul-3
+
+ln -s /etc/nginx/sites-available/modul-3 /etc/nginx/sites-enabled/modul-3
+
+rm /etc/nginx/sites-enabled/default
+
+service nginx restart
+service php7.3-fpm stop
+service php7.3-fpm start
+```
+### Hasil
+Kemudian untuk melakukan pengujian jalankan command berikut pada php worker:
+```
+lynx localhost:8000 
+```
+<img width="1402" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/9877e921-1af9-4f20-9cae-809c01acc50d">
+
+
+## Soal 7
+> Kepala suku dari Bredt Region memberikan resource server sebagai berikut: Lawine, 4GB, 2vCPU, dan 80 GB SSD; Linie, 2GB, 2vCPU, dan 50 GB SSD; Lugner 1GB, 1vCPU, dan 25 GB SSD; aturlah agar Eisen dapat bekerja dengan maksimal, lalu lakukan testing dengan 1000 request dan 100 request/second. (7)
+
+### *Script*
+Untuk mengatur Load balancer ***Eisen*** gunakan script berikut, pada node ***Eisen***:
+```sh
+apt install nginx -y
+
+echo ' # Default menggunakan Round Robin
+upstream granz  {
+	server 10.47.3.1:8000; #IP Lugner
+	server 10.47.3.4:8000; #IP Linie
+	server 10.47.3.5:8000; #IP Lawine
+}
+
+server {
+	listen 80;
+	server_name granz.channel.e21.com www.granz.channel.e21.com;
+
+	location / {
+		proxy_pass http://granz;
+	}
+}' > /etc/nginx/sites-available/lb-proxy
+
+ln -s /etc/nginx/sites-available/lb-proxy /etc/nginx/sites-enabled/lb-proxy
+
+rm /etc/nginx/sites-enabled/default
+
+service nginx restart
+```
+Kemudian kita juga perlu menjalankan script berikut pada node ***Lugner***, yang menjadi lokasi dari domain granz.channel.e21.com yang sebelumnya telah diatur pada DNS Server. Hal ini untuk mengarahkan request ke Load Balancer. gunakan script berikut untuk melakukannya pada node ***Lugner***:
+```sh
+apt install nginx php7.3 php7.3-fpm wget zip htop -y
+
+echo '
+server {
+	listen 80;
+	server_name granz.channel.e21.com www.granz.channel.e21.com;
+
+	location / {
+		proxy_set_header Host $host;
+		proxy_pass http://10.47.2.2; #IP Eisen
+}
+}' > /etc/nginx/sites-available/lb-proxy
+
+ln -s /etc/nginx/sites-available/lb-proxy /etc/nginx/sites-enabled/lb-proxy
+
+wget -O '/var/www/jarkom.zip' 'https://drive.google.com/uc?id=1ViSkRq7SmwZgdK64eRbr5Fm1EGCTPrU1&export=download'
+unzip -o /var/www/jarkom.zip -d /var/www/
+rm /var/www/jarkom.zip
+
+echo '
+server {
+
+	listen 8000;
+
+	root /var/www/modul-3;
+
+	index index.php index.html index.htm;
+	server_name _;
+
+	location / {
+		try_files $uri $uri/ /index.php?$query_string;
+	}
+
+	# pass PHP scripts to FastCGI server
+	location ~ \.php$ {
+		include snippets/fastcgi-php.conf;
+		fastcgi_pass unix:/var/run/php/php7.3-fpm.sock;
+	}
+
+	location ~ /\.ht {
+		deny all;
+	}
+
+	error_log /var/log/nginx/jarkom_error.log;
+	access_log /var/log/nginx/jarkom_access.log;
+}
+' > /etc/nginx/sites-available/modul-3
+
+ln -s /etc/nginx/sites-available/modul-3 /etc/nginx/sites-enabled/modul-3
+
+rm /etc/nginx/sites-enabled/default
+
+service nginx restart
+service php7.3-fpm stop
+service php7.3-fpm start
+```
+### Hasil
+Kemudian untuk melakukan pengujian dengan 1000 request dan 100 request/second, gunakan command berikut pada node client:
+```
+ab -n 1000 -c 100 http://www.granz.channel.e21.com/ 
+```
+<img width="853" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/1bdd8778-fae4-4d8c-b3a4-6bd3d4c6d608">
+<img width="853" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/0a1aac5a-a1c6-4279-b6fd-0147d5eb59c1">
+<img width="853" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/296cf3ac-5570-428f-8c1c-f9b1e74986e6">
+<img width="1402" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/16f2f703-cf68-4c5b-88fc-f620714918ac">
+
+
+## Soal 8
+> Karena diminta untuk menuliskan grimoire, buatlah analisis hasil testing dengan 200 request dan 10 request/second masing-masing algoritma Load Balancer dengan ketentuan sebagai berikut:
+> - Nama Algoritma Load Balancer
+> - Report hasil testing pada Apache Benchmark
+> - Grafik request per second untuk masing masing algoritma. 
+> - Analisis (8)
+
+## Soal 9
+> Dengan menggunakan algoritma Round Robin, lakukan testing dengan menggunakan 3 worker, 2 worker, dan 1 worker sebanyak 100 request dengan 10 request/second, kemudian tambahkan grafiknya pada grimoire. (9)
+
+## Soal 10
+> Selanjutnya coba tambahkan konfigurasi autentikasi di LB dengan dengan kombinasi username: “netics” dan password: “ajkyyy”, dengan yyy merupakan kode kelompok. Terakhir simpan file “htpasswd” nya di /etc/nginx/rahasisakita/ (10)
+
+### ***Script***
+Untuk menambahkan autentikasi pada Load Balancer, jalankan command berikut:
+```sh
+mkdir /etc/nginx/rahasiakita
+echo 'ajke21' | htpasswd -ic /etc/nginx/rahasiakita/.htpasswd netics
+```
+Kemudian untuk memperbarui konfigurasi webserver, jalankan script berikut:
+```sh
+echo ' # Default menggunakan Round Robin
+upstream granz  {
+	server 10.47.3.1:8000; #IP Lugner
+	server 10.47.3.4:8000; #IP Linie
+	server 10.47.3.5:8000; #IP Lawine
+}
+
+server {
+	listen 80;
+	server_name granz.channel.e21.com www.granz.channel.e21.com;
+
+	auth_basic "Authorization";
+	auth_basic_user_file /etc/nginx/rahasiakita/.htpasswd;
+
+	location / {
+		proxy_pass http://granz;
+	}
+}
+'> /etc/nginx/sites-available/lb-proxy
+
+ln -s /etc/nginx/sites-available/lb-proxy /etc/nginx/sites-enabled/lb-proxy
+
+rm /etc/nginx/sites-enabled/default
+
+service nginx restart
+```
+
+### Hasil
+Untuk mencobanya, coba akses ```granz.channel.e21.com``` menggunakan ```lynx```:
+```
+lynx granz.channel.e21.com
+```
+<img width="1402" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/18d73842-5500-4afc-9bb7-b5a58877fab4">
+<img width="1402" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/4c80fdca-da1a-4470-b196-c3451aba12ff">
+<img width="863" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/352f42a9-31df-496d-92f4-2f1bd6491871">
+
+
+
+
+## Soal 11
+> Lalu buat untuk setiap request yang mengandung /its akan di proxy passing menuju halaman https://www.its.ac.id. (11) hint: (proxy_pass)
+
+### ***Script***
+Gunakan script berikut pada node ***Lugner*** untuk memperbarui konfigurasi webserver agar mengatur request yang mengandung /its:
+```sh
+apt install nginx php7.3 php7.3-fpm wget zip htop -y
+
+echo '
+server {
+	listen 80;
+	server_name granz.channel.e21.com www.granz.channel.e21.com;
+
+	location ~ /its {
+		proxy_pass https://www.its.ac.id;
+		proxy_set_header Host www.its.ac.id;
+		proxy_set_header X-Real-IP $remote_addr;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_set_header X-Forwarded-Proto $scheme;
+	}
+
+	location / {
+		proxy_set_header Host $host;
+		proxy_pass http://10.47.2.2; #IP Eisen
+	}
+}' > /etc/nginx/sites-available/lb-proxy
+
+ln -s /etc/nginx/sites-available/lb-proxy /etc/nginx/sites-enabled/lb-proxy
+
+rm /etc/nginx/sites-enabled/default
+
+service nginx restart
+service php7.3-fpm stop
+service php7.3-fpm start
+```
+
+### Hasil
+Jalankan command berikut untuk mencobanya:
+```
+lynx granz.channel.e21.com/its
+```
+<img width="863" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/39d8b54c-8d9d-4d16-b5ea-aec51904546c">
+<img width="863" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/49f02986-347e-4fa3-a345-4be68a5a0ef5">
+
+
+## Soal 12
+> Selanjutnya LB ini hanya boleh diakses oleh client dengan IP [Prefix IP].3.69, [Prefix IP].3.70, [Prefix IP].4.167, dan [Prefix IP].4.168. (12) hint: (fixed in dulu clinetnya)
+
+Gunakan script berikut pada node ***Lugner*** untuk memperbarui konfigurasi webserver agar mengarahkan request ke Load Balancer oleh client dengan IP yang telah ditentukan.
+```sh
+echo '
+geo $allowed {
+	default     0;
+	10.47.3.69  1;
+	10.47.3.70  1;
+	10.47.4.167 1;
+	10.47.4.168 1;
+}
+
+server {
+	listen 80;
+	server_name granz.channel.e21.com www.granz.channel.e21.com;
+
+	location ~ /its {
+		proxy_pass https://www.its.ac.id;
+		proxy_set_header Host www.its.ac.id;
+		proxy_set_header X-Real-IP $remote_addr;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_set_header X-Forwarded-Proto $scheme;
+	}
+
+	location / {
+		proxy_set_header Host $host;
+		if ($allowed) {
+			proxy_pass http://10.47.2.2; #IP Eisen
+		}
+		deny all; 
+		return 403; 
+	}
+}' > /etc/nginx/sites-available/lb-proxy
+
+ln -s /etc/nginx/sites-available/lb-proxy /etc/nginx/sites-enabled/lb-proxy
+
+rm /etc/nginx/sites-enabled/default
+
+service nginx restart
+service php7.3-fpm stop
+service php7.3-fpm start
+```
+
+### Hasil
+
+Disini, kami mencoba mengakses melaui client ***Revolte***, yang pada saat ini dijalankan DHCP server memberikan IP, ```10.47.3.18```. Maka karena hanya range tertentu yang bisa mengakses, otomatis pada percobaan ini tidak akan berhasil untuk mengakses ```granz.channel.e21.com```
+<img width="863" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/1c7975b4-8058-4c01-ac81-c39a6dad9a94">
+<img width="863" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/5664330e-59a9-4ebc-80d9-3d721a95dcc3">
+<img width="863" alt="image" src="https://github.com/javakanaya/Jarkom-Modul-3-E21-2023/assets/87474722/c5cae3b6-4c0d-4b22-901e-89c3da1a34e3">
+
+
 
 ## Soal 13 
 > Karena para petualang kehabisan uang, mereka kembali bekerja untuk mengatur riegel.canyon.yyy.com. 
